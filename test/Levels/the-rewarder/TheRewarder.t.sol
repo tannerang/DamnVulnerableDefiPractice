@@ -92,7 +92,7 @@ contract TheRewarder is Test {
         vm.startPrank(attacker);
         TheRewarderAttacker theRewarderAttacker =
         new TheRewarderAttacker(address(theRewarderPool), address(flashLoanerPool), address(dvt), address(theRewarderPool.rewardToken()));
-        theRewarderAttacker.attack();
+        theRewarderAttacker.attack(); // Let deposit() to trigger distributeRewards(), then repay the debt of flashloan.
         vm.stopPrank();
 
         /**
