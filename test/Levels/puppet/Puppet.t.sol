@@ -100,9 +100,6 @@ contract Puppet is Test {
         /**
          * EXPLOIT START *
          */
-
-        //uint256 tt = UniswapV1Exchange(uniswapExchange).getTokenToEthInputPrice(10 ether);
-        //console2.log("getTokenToEthInputPrice", tt);
         vm.startPrank(attacker);
         PuppetAttacker puppetAttacker =
             new PuppetAttacker{value: 25 ether}(address(uniswapExchange), address(dvt), address(puppetPool));
