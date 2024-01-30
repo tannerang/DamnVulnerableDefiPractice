@@ -137,7 +137,7 @@ contract FreeRider is Test {
         vm.startPrank(attacker, attacker);
         FreeRiderAttacker freeRiderAttacker =
         new FreeRiderAttacker{value: 0.5 ether}(payable(address(freeRiderNFTMarketplace)), address(damnValuableNFT), address(uniswapV2Pair), payable(address(weth)), address(freeRiderBuyer));
-        freeRiderAttacker.attack();
+        freeRiderAttacker.attack(); // The buyMany() msg.value only costs 15 ether once.
         vm.stopPrank();
 
         /**
