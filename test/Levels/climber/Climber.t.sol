@@ -77,7 +77,7 @@ contract Climber is Test {
         vm.startPrank(attacker);
         ClimberAttacker climberAttacker =
             new ClimberAttacker(address(climberVaultProxy), address(dvt), payable(address(climberTimelock)));
-        climberAttacker.attack();
+        climberAttacker.attack(); // First: get ownership. Second: updateDelay. Third: grant proposer role. Forth: call schedule.
         vm.stopPrank();
 
         /**
